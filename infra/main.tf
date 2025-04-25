@@ -98,6 +98,13 @@ resource "aws_lambda_function" "register_user" {
     }
   }
 }
+resource "aws_lambda_permission" "apigw" {
+  statement_id  = "AllowAPIGatewayInvoke"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.register_user.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_api_gateway_rest_api.register_api.execution_arn}/*/*"
+}
 
 # api gateway
 resource "aws_api_gateway_rest_api" "register_api" {
