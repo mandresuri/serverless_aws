@@ -7,12 +7,30 @@ terraform {
       version = "5.34.0"
     }
   }
+  backend "s3" {
+    bucket         = "terraform-states-serverless-test"
+    key            = "serverless.tfstate"
+    region         = "us-east-1"
+    encrypt        = true
+    dynamodb_table = "terraform_state_lock"
+  }
 }
 
 provider "aws" {
   region = "us-east-1"
 }
+# lock
+resource "aws_dynamodb_table" "terraform_state_lock" {
+  billing_mode                = "PAY_PER_REQUEST"
+  hash_key                    = "LockID"
+  name                        = "terraform_state_lock"
+  deletion_protection_enabled = true
 
+  attribute {
+    name = "LockID"
+    type = "S"
+  }
+}
 # Dynamo DB
 resource "aws_dynamodb_table" "register_table" {
   name         = "registerTable"
