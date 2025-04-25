@@ -117,3 +117,28 @@ resource "aws_api_gateway_method" "register_method" {
   http_method   = "POST"
   authorization = "NONE"
 }
+
+# integration
+resource "aws_api_gateway_integration" "register_integration" {
+  rest_api_id             = aws_api_gateway_rest_api.register_api.id
+  resource_id             = aws_api_gateway_resource.register_resource.id
+  http_method             = aws_api_gateway_method.register_method.http_method
+  integration_http_method = "POST"
+  type                    = "AWS_PROXY"
+  uri                     = "arn:aws:apigateway:${data.aws_region.current.name}:lambda:path/2015-03-31/functions/${aws_lambda_function.register_user.arn}/invocations"
+}
+
+resource "aws_lambda_permission" "allow_api_gateway_invocation" {
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.register_user.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_api_gateway_rest_api.register_api.execution_arn}/*/*"
+}
+
+resource "aws_api_gateway_deployment" "register_deployment" {
+  depends_on = [
+    aws_api_gateway_integration.register_integration,
+    aws_api_gateway_method.register_method
+  ]
+  rest_api_id = aws_api_gateway_rest_api.register_api.id
+}
