@@ -154,13 +154,26 @@ resource "aws_api_gateway_stage" "stage" {
   deployment_id = aws_api_gateway_deployment.register_deployment.id
   rest_api_id   = aws_api_gateway_rest_api.register_api.id
   stage_name    = "stage"
+
   access_log_settings {
-    destination_arn = "arn:aws:logs:us-east-1:784865752476:log-group:/aws/api-gateway/register-api-logs"
-    format          = "$context.identity.sourceIp - $context.identity.user - $context.requestTime - $context.requestId"
+    destination_arn = aws_cloudwatch_log_group.api_gateway_logs.arn
+    format = jsonencode({
+      requestId       = "$context.requestId"
+      extendedRequestId = "$context.extendedRequestId"
+      status          = "$context.status"
+      integrationStatus = "$context.integrationStatus"
+      integrationLatency = "$context.integrationLatency"
+      responseLatency = "$context.responseLatency"
+      ip              = "$context.identity.sourceIp"
+      caller          = "$context.identity.caller"
+      user            = "$context.identity.user"
+      requestTime     = "$context.requestTime"
+      httpMethod      = "$context.httpMethod"
+      resourcePath    = "$context.resourcePath"
+    })
   }
-  variables = {
-    "logLevel" = "INFO"
-  }
+
+  depends_on = [aws_api_gateway_account.account_settings]
 }
 
 # logging
@@ -218,5 +231,29 @@ resource "aws_sns_topic" "error_notifications" {
 resource "aws_sns_topic_subscription" "email_subscription" {
   topic_arn = aws_sns_topic.error_notifications.arn
   protocol  = "email"
-  endpoint  = "mandresuri@gmail.om"
+  endpoint  = "mandresuri@gmail.com"
+}
+
+resource "aws_iam_role" "apigateway_cloudwatch_role" {
+  name = "apigateway-cloudwatch-logs-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [{
+      Effect = "Allow",
+      Principal = {
+        Service = "apigateway.amazonaws.com"
+      },
+      Action = "sts:AssumeRole"
+    }]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "apigateway_cloudwatch_attach" {
+  role       = aws_iam_role.apigateway_cloudwatch_role.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs"
+}
+
+resource "aws_api_gateway_account" "account_settings" {
+  cloudwatch_role_arn = aws_iam_role.apigateway_cloudwatch_role.arn
 }
