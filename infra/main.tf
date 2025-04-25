@@ -149,3 +149,9 @@ resource "aws_api_gateway_deployment" "register_deployment" {
   ]
   rest_api_id = aws_api_gateway_rest_api.register_api.id
 }
+
+resource "aws_api_gateway_stage" "stage" {
+  deployment_id = aws_api_gateway_deployment.register_deployment.id
+  rest_api_id   = aws_api_gateway_rest_api.register_api.id
+  stage_name    = "stage"
+}
