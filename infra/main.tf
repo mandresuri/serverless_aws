@@ -154,4 +154,69 @@ resource "aws_api_gateway_stage" "stage" {
   deployment_id = aws_api_gateway_deployment.register_deployment.id
   rest_api_id   = aws_api_gateway_rest_api.register_api.id
   stage_name    = "stage"
+  access_log_settings {
+    destination_arn = "arn:aws:logs:us-east-1:784865752476:log-group:/aws/api-gateway/register-api-logs"
+    format          = "$context.identity.sourceIp - $context.identity.user - $context.requestTime - $context.requestId"
+  }
+  variables = {
+    "logLevel" = "INFO"
+  }
+}
+
+# logging
+
+resource "aws_cloudwatch_log_group" "api_gateway_logs" {
+  name = "/aws/api-gateway/register-api-logs"
+}
+
+resource "aws_cloudwatch_metric_alarm" "api_gateway_4xx_alarm" {
+  alarm_name                = "APIGateway4xxErrors"
+  comparison_operator       = "GreaterThanThreshold"
+  evaluation_periods        = "1"
+  metric_name               = "4XXError"
+  namespace                 = "AWS/ApiGateway"
+  period                    = "60"
+  statistic                 = "Sum"
+  threshold                 = "1"
+  alarm_description         = "Alarm for 4XX errors in API Gateway"
+  dimensions = {
+    ApiName = aws_api_gateway_rest_api.register_api.name
+    Stage   = aws_api_gateway_stage.stage.stage_name
+  }
+
+  actions_enabled           = true
+  alarm_actions = [
+    "arn:aws:sns:us-east-1:784865752476:ErrorNotifications"
+  ]
+}
+
+resource "aws_cloudwatch_metric_alarm" "api_gateway_5xx_alarm" {
+  alarm_name                = "APIGateway5xxErrors"
+  comparison_operator       = "GreaterThanThreshold"
+  evaluation_periods        = "1"
+  metric_name               = "5XXError"
+  namespace                 = "AWS/ApiGateway"
+  period                    = "60"
+  statistic                 = "Sum"
+  threshold                 = "1"
+  alarm_description         = "Alarm for 5XX errors in API Gateway"
+  dimensions = {
+    ApiName = aws_api_gateway_rest_api.register_api.name
+    Stage   = aws_api_gateway_stage.stage.stage_name
+  }
+
+  actions_enabled           = true
+  alarm_actions = [
+    "arn:aws:sns:us-east-1:784865752476:ErrorNotifications"
+  ]
+}
+
+resource "aws_sns_topic" "error_notifications" {
+  name = "ErrorNotifications"
+}
+
+resource "aws_sns_topic_subscription" "email_subscription" {
+  topic_arn = aws_sns_topic.error_notifications.arn
+  protocol  = "email"
+  endpoint  = "mandresuri@gmail.om"
 }
